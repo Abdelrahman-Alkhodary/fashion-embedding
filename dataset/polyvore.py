@@ -23,9 +23,9 @@ class PolyvoreDataset(Dataset):
             self,
             data_dir: str,
             dataset_type: str,
-            img_transforms,
-            augmented_img_transforms, 
             target, 
+            img_transforms=None,
+            augmented_img_transforms=None, 
             polyvore_split: str = 'nondisjoint',
             device: str = 'cuda' if torch.cuda.is_available() else 'cpu',
             ):
@@ -52,10 +52,15 @@ class PolyvoreDataset(Dataset):
         desc = self.item_id2desc[item_id] if item_id in self.item_id2desc else self.item_id2category[item_id]
         return desc
     
+    def text_data_list(self):
+        data_list = []
+        for item_id in tqdm(self.item_ids):
+            data_list.append(self._load_txt(item_id))
+    
     def _get_inputs(self, item_id, image_processor) -> Dict[Literal['text', 'image'], Tensor]:
-        image = self._load_img(item_id)
-        transformer_img = image_processor(image)
         if self.target == 'image':
+            image = self._load_img(item_id)
+            transformer_img = image_processor(image)
             return transformer_img
         elif self.target == 'text':
             return self._load_txt(item_id)
@@ -71,7 +76,7 @@ class PolyvoreDataset(Dataset):
         
     def __len__(self):
         return len(self.data)
-    
+
 
 def load_data_inputs(data_dir, polyvore_split, dataset_type, outfit_id2item_id):
     """To make sure the items are different we will use fill-in-the-blank data from polyvore dataset 
