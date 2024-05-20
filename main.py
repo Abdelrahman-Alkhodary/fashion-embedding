@@ -5,13 +5,14 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from dataset.polyvore import PolyvoreDataset
 from model.resnet import SiameseNetwork
+import matplotlib.pyplot as plt
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
 
 
 def main():
-    data_dir = 'E:\AlgorithmX\polyvore_outfits'
+    data_dir = '/home/abdelrahman/fashion-matching/fashion-compatibility/data/polyvore_outfits'
     # 1. Data Augmentation Transforms to be used in the Siamese Network model for creating positive samples
     augmented_img_transforms = transforms.Compose([
         transforms.RandomResizedCrop(224),  # Adjust size as needed
@@ -32,9 +33,9 @@ def main():
     img_val_dataset = PolyvoreDataset(data_dir=data_dir, dataset_type='valid', img_transforms=img_transforms, augmented_img_transforms=augmented_img_transforms, target='image')
     img_test_dataset = PolyvoreDataset(data_dir=data_dir, dataset_type='test', img_transforms=img_transforms, augmented_img_transforms=augmented_img_transforms, target='image')
 
-    img_train_loader = DataLoader(img_train_dataset, batch_size=32, shuffle=True)
-    img_val_loader = DataLoader(img_val_dataset, batch_size=32, shuffle=False)
-    img_test_loader = DataLoader(img_test_dataset, batch_size=32, shuffle=False)
+    img_train_loader = DataLoader(img_train_dataset, batch_size=64, shuffle=True)
+    img_val_loader = DataLoader(img_val_dataset, batch_size=64, shuffle=False)
+    img_test_loader = DataLoader(img_test_dataset, batch_size=64, shuffle=False)
 
     # 2. Siamese Network Architecture
     model = SiameseNetwork(model_name = 'resnet50', embedding_dim=128)
@@ -49,7 +50,7 @@ def main():
     model.to(device)
     training_losses = []
     validation_losses = []
-    for epoch in range(10):
+    for epoch in range(20):
         model.train()
         training_loss = 0.0
         for batch in tqdm(img_train_loader, desc="Training"):
@@ -79,7 +80,26 @@ def main():
 
         print(f"Epoch {epoch+1}, Training Loss: {training_loss/len(img_train_loader)}, Validation Loss: {valid_loss/len(img_val_loader)}")
     
-    # 6. Testing Loop
+    # 6. Save Model Weights
+    torch.save(model.state_dict(), "./weights/image_model/siamese_model_weights.pth")
+    
+    x_values = np.arange(1, len(training_losses) + 1)
+    # Plot the lists
+    plt.figure(figsize=(10, 6))
+    plt.plot(x_values, training_losses, label='Training Loss', marker='o')
+    plt.plot(x_values, validation_losses, label='Validation Loss', marker='x')
+
+    # Add labels and title
+    plt.xlabel('Index (Length)')
+    plt.ylabel('Value')
+    plt.title('Plot of Two Lists Against Their Length')
+    plt.legend()
+    plt.grid(axis='y', linestyle='--')
+
+    # Save the figure
+    plt.savefig('./training_vs_validation_loss.png') 
+    
+    # 7. Testing Loop
     model.eval()
     anchor_pos_similarities = []
     anchor_neg_similarities = []
@@ -93,11 +113,10 @@ def main():
             
             # Calculate Similarities
             for i in range(output1.size(0)):  # Iterate over batch items
-                anchor_pos_similarities.append(cosine_similarity(output1[i].unsqueeze(0), output2[i].unsqueeze(0)).item())
-                anchor_neg_similarities.append(cosine_similarity(output1[i].unsqueeze(0), output3[i].unsqueeze(0)).item())
+                anchor_pos_similarities.append(cosine_similarity(output1[i].unsqueeze(0).cpu(), output2[i].unsqueeze(0).cpu()).item())
+                anchor_neg_similarities.append(cosine_similarity(output1[i].unsqueeze(0).cpu(), output3[i].unsqueeze(0).cpu()).item())
 
-    # 7. Save Model Weights
-    torch.save(model.state_dict(), "./weights/image_model/siamese_model_weights.pth")
+    
 
     # # ... (Later, to load the weights)
     # model = SiameseNetwork(model_name = 'resnet50', embedding_dim=128)  # Recreate model
