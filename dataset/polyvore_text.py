@@ -1,7 +1,31 @@
 import os
 import json
 from tqdm import tqdm
+import random
 
+
+# def text_data_list(data_dir, polyvore_split, dataset_type, samples_per_category=20):
+#     item_ids, item_id2category, item_id2desc = load_data(data_dir, polyvore_split, dataset_type)
+#     # create a dictionary to store the sentences of each category
+#     categorized_sentences = {}
+#     for item_id in tqdm(item_ids):
+#         item_desc = item_id2desc[item_id] if item_id in item_id2desc else item_id2category[item_id]
+#         item_category = item_id2category[item_id]
+#         categorized_sentences.setdefault(item_category, []).append(item_desc)
+    
+#     sentece_pairs = []
+#     categories = list(categorized_sentences.keys())
+#     for cat_1 in categories:
+#         for cat_2 in categories:
+#             if cat_1 != cat_2:
+#                 # random sampling pairs of sentences from different categories
+#                 sentences_1 = random.sample(categorized_sentences[cat_1], samples_per_category)
+#                 sentences_2 = random.sample(categorized_sentences[cat_2], samples_per_category)
+                
+#                 for sent_1 in sentences_1:
+#                     for sent_2 in sentences_2:
+#                         sentece_pairs.append((sent_1, sent_2))
+#     return sentece_pairs
 
 def text_data_list(data_dir, polyvore_split, dataset_type):
     item_ids, item_id2category, item_id2desc = load_data(data_dir, polyvore_split, dataset_type)
@@ -12,7 +36,6 @@ def text_data_list(data_dir, polyvore_split, dataset_type):
     for item_id in tqdm(item_ids):
         data_list.append(_load_txt(item_id))
     return data_list
-
 
 def load_data(data_dir, polyvore_split, dataset_type):
     # Paths

@@ -7,39 +7,51 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from dataset.polyvore_text import text_data_list
 import numpy as np
+from sklearn.decomposition import PCA
 
 
 
 def main():
-    data_dir = 'E:\AlgorithmX\polyvore_outfits'
+    data_dir = '/home/abdelrahman/fashion-matching/data/polyvore_outfits'
     # 1. Dataset using Text Data
     text_train_dataset = text_data_list(data_dir=data_dir, polyvore_split='nondisjoint', dataset_type='train')
     text_val_dataset = text_data_list(data_dir=data_dir, polyvore_split='nondisjoint',dataset_type='valid')
     text_test_dataset = text_data_list(data_dir=data_dir, polyvore_split='nondisjoint',dataset_type='test')
 
-    train_dataloader = ContrastiveTensionDataLoader(text_train_dataset, batch_size=3, pos_neg_ratio=3)
+    # train_dataloader = ContrastiveTensionDataLoader(text_train_dataset, batch_size=10, pos_neg_ratio=10)
     
-    # 2. Sentence Transformer Model
-    word_embedding_model = models.Transformer("bert-base-uncased", max_seq_length=256)
-    pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension())
-    dense_model = models.Dense(
-        in_features=pooling_model.get_sentence_embedding_dimension(),
-        out_features=128,
-        activation_function=nn.Tanh(),
+    # Model for which we apply dimensionality reduction
+    model = SentenceTransformer("all-MiniLM-L6-v2")
+    
+    # New size for the embeddings
+    new_dimension = 128
+    
+    # get the embedding for the dataset
+    train_embeddings = model.encode(text_train_dataset, convert_to_numpy=True)
+    
+    # Compute PCA on the train embeddings matrix
+    pca = PCA(n_components=new_dimension)
+    pca.fit(train_embeddings)
+    pca_comp = np.asarray(pca.components_)
+    
+    # We add a dense layer to the model, so that it will produce directly embeddings with the new size
+    dense = models.Dense(
+        in_features=model.get_sentence_embedding_dimension(),
+        out_features=new_dimension,
+        bias=False,
+        activation_function=torch.nn.Identity(),
     )
-
-    model = SentenceTransformer(modules=[word_embedding_model, pooling_model, dense_model], cache_folder='./weights/text_model/cache', output_path='./weights/text_model' )
-
-    # 3. Loss Function and Optimizer
-    train_loss = losses.ContrastiveTensionLoss(model=model)
-
-
-    # 4. Training Loop
-    model.fit(
-        [(train_dataloader, train_loss)],
-        epochs=10,
-        checkpoint_path='./weights/text_model'
-    )
+    dense.linear.weight = torch.nn.Parameter(torch.tensor(pca_comp))
+    model.add_module("dense", dense)
+    
+    # If you like, you can store the model on disc by uncommenting the following line
+    model.save('./weights/text_model/sbert-128dim-model')
+    
+    # finished
+    print("Model is stored on disc")
+    
+    # You can then load the adapted model that produces 128 dimensional embeddings like this:
+    # model = SentenceTransformer('models/my-128dim-model')
     
 
 if __name__ == '__main__':
