@@ -2,6 +2,7 @@ import os
 import json
 from tqdm import tqdm
 import random
+from sentence_transformers.readers import InputExample
 
 
 # def text_data_list(data_dir, polyvore_split, dataset_type, samples_per_category=20):
@@ -26,15 +27,29 @@ import random
 #                     for sent_2 in sentences_2:
 #                         sentece_pairs.append((sent_1, sent_2))
 #     return sentece_pairs
+cat2label = {'accessories': 0, 
+             'all-body': 1, 
+             'bags': 2, 
+             'bottoms': 3, 
+             'hats': 4, 
+             'jewellery': 5, 
+             'outerwear': 6, 
+             'scarves': 7, 
+             'shoes': 8, 
+             'sunglasses': 9, 
+             'tops': 10
+}
+        
 
 def text_data_list(data_dir, polyvore_split, dataset_type):
     item_ids, item_id2category, item_id2desc = load_data(data_dir, polyvore_split, dataset_type)
     def _load_txt(item_id):
         desc = item_id2desc[item_id] if item_id in item_id2desc else item_id2category[item_id]
-        return desc
+        text = item_id2category[item_id] + ' ' + desc
+        return text
     data_list = []
     for item_id in tqdm(item_ids):
-        data_list.append(_load_txt(item_id))
+        data_list.append(InputExample(texts=[_load_txt(item_id)], label=cat2label[item_id2category[item_id]]))
     return data_list
 
 def load_data(data_dir, polyvore_split, dataset_type):
